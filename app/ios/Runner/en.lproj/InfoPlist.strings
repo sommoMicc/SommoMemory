@@ -1,2 +1,3 @@
+"NSMicrophoneUsageDescription" = "SommoMemory uses the microphone only if you turn on the optional lobby voice chat.";
 "NSBluetoothAlwaysUsageDescription" = "SommoMemory uses Bluetooth to play with a nearby friend, even without an internet connection.";
 "NSBluetoothPeripheralUsageDescription" = "SommoMemory uses Bluetooth to play with a nearby friend, even without an internet connection.";

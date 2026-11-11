@@ -105,7 +105,10 @@ class OnlineGame extends ChangeNotifier {
     'ranked-v1',
     'ranked-attempts-v1',
     'lobby-v1',
+    'voice-v1',
   ];
+  final StreamController<Map<String, dynamic>> voiceEvents =
+      StreamController<Map<String, dynamic>>.broadcast();
   String? get code => _roomCode;
   bool get hasSession => _roomCode != null && _token != null;
   RoomPreview? get roomPreview => _roomPreview;
@@ -279,6 +282,9 @@ class OnlineGame extends ChangeNotifier {
                   _endSession(error!, retryable: !terminal);
                   return;
                 }
+                break;
+              case 'voice':
+                if (!voiceEvents.isClosed) voiceEvents.add(msg);
                 break;
               case 'left':
                 _endSession(
@@ -510,6 +516,7 @@ class OnlineGame extends ChangeNotifier {
     _retry?.cancel();
     _heartbeat?.cancel();
     _handshake?.cancel();
+    unawaited(voiceEvents.close());
     unawaited(_detachChannel());
     super.dispose();
   }

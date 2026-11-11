@@ -19,6 +19,7 @@ room sessions and profile sessions are independent credentials.
 | `leave` | none | Leaves and invalidates the seat token. Active play forfeits; a lobby guest frees the seat while the host closes the room. |
 | `preview` | `code` | Reads a full room's public score/result snapshot without taking a seat or creating a session. |
 | `ping` | none | Returns `pong` with server time. |
+| `voice` | `action` `join`, `leave`, `mute` (`muted` boolean) or `signal` | Optional lobby-wide voice. See `voice-v1`. |
 
 One active session per socket. Leave it before creating or joining another room.
 Player names are trimmed and limited to 24 visible Unicode characters.
@@ -223,6 +224,28 @@ another online entry offers to resume before creating a new workflow that could
 erase that token. A final receipt or cancellation releases the local guard.
 Leaving or an expired session clears it. Session transfer never erases the
 new tab's stored seat. A completed game returns home without a forfeit warning.
+
+## Voice extension: `voice-v1`
+
+Updated clients may advertise `voice-v1`. Voice is optional and covers the whole
+room: there is no private side channel. A seated player sends `{type:"voice",action:"join"}`
+to enter and `leave` to exit without leaving the match. `mute` updates only that
+player's muted flag. Joining again bumps `generation` so peers renegotiate after
+a reconnect. The server broadcasts:
+
+```json
+{ "type": "voice", "action": "state", "members": [{"id":"player-id","muted":false,"generation":1}] }
+```
+
+An empty channel does not insert a message between `session` and `state`. A
+snapshot follows `state` only when someone is already in voice. `signal` relays
+one `offer`, `answer` or `ice` payload to another voice member in the same room.
+The description is not stored, logged or included in admin history.
+Audio is peer-to-peer. A stale `generation`, a target outside the room, or a
+player who has not joined voice is rejected with `{type:"voice",action:"error"}`
+and does not end the match. Closing the socket, leaving the seat or closing the
+room drops membership immediately. Clients that do not send `voice` are never
+placed in the channel.
 
 ## Operational behavior
 

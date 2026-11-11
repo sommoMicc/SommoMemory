@@ -24,6 +24,7 @@ import 'ui/deck_art.dart';
 import 'ui/game_world.dart';
 import 'ui/store_links.dart';
 import 'bluetooth/bluetooth_controller.dart';
+import 'voice_chat.dart';
 
 const _systemFontFallback = ['Apple Color Emoji', 'Noto Color Emoji'];
 const _fallbackTextStyle = TextStyle(fontFamilyFallback: _systemFontFallback);
@@ -2571,6 +2572,7 @@ class _BoardFrame {
 
 class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   late final GameFeedback gameFeedback;
+  LobbyVoice? lobbyVoice;
   bool feedbackForeground = true;
   bool muteFeedbackUntilSettled = false;
   LocalGame? local;
@@ -2870,6 +2872,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     activeTicket = widget.ticket;
     if (!network) _startLocal();
     resetPresentation(captureFrame());
+    if (widget.online != null) {
+      lobbyVoice = LobbyVoice(widget.online!)..addListener(update);
+    }
     widget.online?.addListener(update);
     widget.bluetooth?.addListener(update);
   }
@@ -2919,6 +2924,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     feedbackForeground = state == AppLifecycleState.resumed;
     if (!feedbackForeground) muteFeedbackUntilSettled = true;
     gameFeedback.setActive(feedbackForeground && (!network || connected));
+    lobbyVoice?.setForeground(feedbackForeground);
     if (state == AppLifecycleState.resumed &&
         widget.online != null &&
         !widget.online!.terminalError &&
@@ -2934,6 +2940,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     pendingFrames.clear();
     WidgetsBinding.instance.removeObserver(this);
     local?.dispose();
+    lobbyVoice?.removeListener(update);
+    lobbyVoice?.dispose();
     widget.online?.removeListener(update);
     widget.bluetooth?.removeListener(update);
     super.dispose();
@@ -3370,6 +3378,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                               color: connected ? popYellow : coral,
                               size: 20,
                             ),
+                          if (lobbyVoice != null)
+                            LobbyVoiceControls(
+                              voice: lobbyVoice!,
+                              compact: true,
+                            ),
                           if (code != null && widget.online != null)
                             IconButton(
                               tooltip: tr(context, 'Copia invito · {code}', {
@@ -3411,6 +3424,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             onBack: exit,
                             onLeaveLobby: exitLobby,
                             onCopy: code != null ? copyInvite : null,
+                            voice: lobbyVoice,
                           ),
                         ),
                       if (!waiting) ...[
@@ -4337,8 +4351,10 @@ class _RoomStatusPanel extends StatelessWidget {
     required this.onBack,
     required this.onLeaveLobby,
     this.onCopy,
+    this.voice,
   });
   final OnlineGame? online;
+  final LobbyVoice? voice;
   final String? error, code;
   final bool waitingForPlayer, bluetooth;
   final VoidCallback onBack;
@@ -4492,12 +4508,37 @@ class _RoomStatusPanel extends StatelessWidget {
                                             ),
                                           ),
                                           const SizedBox(height: 2),
-                                          Text(
-                                            playerStatus,
-                                            style: const TextStyle(
-                                              color: ink,
-                                              fontSize: 12,
-                                            ),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  playerStatus,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: ink,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (playerId is String &&
+                                                  voice?.memberFor(playerId) !=
+                                                      null) ...[
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  voice!
+                                                          .memberFor(playerId)!
+                                                          .muted
+                                                      ? Icons.mic_off_rounded
+                                                      : Icons.mic_rounded,
+                                                  size: 14,
+                                                  color: ink,
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -4530,6 +4571,10 @@ class _RoomStatusPanel extends StatelessWidget {
                                 : tr(context, 'Esci dalla lobby'),
                           ),
                         ),
+                        if (voice != null) ...[
+                          const SizedBox(height: 4),
+                          LobbyVoiceControls(voice: voice!),
+                        ],
                       ],
                       if (preview != null) ...[
                         const SizedBox(height: 10),

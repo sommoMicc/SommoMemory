@@ -28,7 +28,7 @@ that interval to preserve active games. Idle rooms expire after 24 hours.
 
 Optional profiles use opaque device tokens and a user-exported recovery code for
 cross-device sync. Optional Apple/Google authentication is available only when
-configured; guest play remains available. There are no app passwords, chat, ads,
+configured; guest play remains available. There are no app passwords, text chat, ads,
 real money or purchases. The passkey-protected [admin dashboard](../docs/ADMIN.md) retains operational
 profile activity and sanitized online match history for 90 days. Deletion removes
 activity and anonymizes historical participants. No third-party gameplay analytics

@@ -94,6 +94,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SommoMemory usa il microfono solo se attivi la chat vocale facoltativa della lobby.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>SommoMemory usa il Bluetooth per giocare con un amico vicino, anche senza Internet.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

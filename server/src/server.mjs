@@ -4,6 +4,7 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket, WebSocketServer } from 'ws';
 import { GameEngine, GameError } from './game.mjs';
+import { createVoiceRelay, VoiceError } from './voice.mjs';
 import { EconomyStore, EconomyError } from './economy.mjs';
 import { economyApi } from './economy-http.mjs';
 import { createAuthService } from './auth.mjs';
@@ -50,11 +51,26 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
     else if (ws.bufferedAmount >= 256 * 1024) ws.terminate();
   };
   const sessionsFor = code => [...sockets.values()].filter(s => s.code === code);
+  const voice = createVoiceRelay();
+  const seatOf = new WeakMap();
+  const publishVoice = code => {
+    const message = voice.stateMessage(code);
+    for (const session of sessionsFor(code)) send(session.ws, message);
+  };
+  const relayVoice = (code, playerId, message) => {
+    const room = engine.room(code);
+    const result = voice.handle(code, playerId, message, room.players.map(player => player.id));
+    if (result.broadcast) publishVoice(code);
+    if (result.relay) {
+      const target = sessionsFor(code).find(session => session.playerId === result.relay.to);
+      if (target) send(target.ws, result.relay.message);
+    }
+  };
 
   const http = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
     let pathname;
     try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
     catch { res.writeHead(400); res.end(); return; }
@@ -118,6 +134,7 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
     for (const { ws, playerId } of sessionsFor(code)) send(ws, engine.state(code, playerId));
   });
   engine.on('removed', code => {
+    voice.forgetRoom(code);
     for (const session of sessionsFor(code)) {
       sockets.delete(session.ws);
       send(session.ws, { type: 'error', code: 'ROOM_EXPIRED', message: 'La stanza è scaduta. Crea una nuova partita.' });
@@ -125,6 +142,7 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
     }
   });
   engine.on('seatRemoved', (code, playerId) => {
+    if (voice.drop(code, playerId)) publishVoice(code);
     for (const session of sessionsFor(code).filter(s => s.playerId === playerId)) {
       sockets.delete(session.ws);
       send(session.ws, { type: 'error', code: 'NO_SESSION', message: 'Il posto nella lobby non è più disponibile.' });
@@ -161,9 +179,12 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
             previous.ws.close(4001, 'Session resumed on another connection');
           }
           sockets.set(ws, { ws, ...session });
+          seatOf.set(ws, { code: session.code, playerId: session.playerId });
           economy.markActive(engine.room(session.code).players.find(p => p.id === session.playerId)?.profileId);
           send(ws, { type: 'session', ...session });
           send(ws, engine.state(session.code, session.playerId));
+          const voiceSnapshot = voice.stateMessage(session.code);
+          if (voiceSnapshot.members.length) send(ws, voiceSnapshot);
         } else if (message.type === 'preview') send(ws, { type: 'roomPreview', roomPreview: engine.preview(message) });
         else if (message.type === 'ping') send(ws, { type: 'pong', time: Date.now() });
         else {
@@ -176,8 +197,16 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
             case 'rematch': engine.rematch(current.code, current.playerId); break;
             case 'leave':
               sockets.delete(ws);
+              if (voice.drop(current.code, current.playerId)) publishVoice(current.code);
               engine.leave(current.code, current.playerId);
               send(ws, { type: 'left' });
+              break;
+            case 'voice':
+              try { relayVoice(current.code, current.playerId, message); }
+              catch (error) {
+                if (!(error instanceof VoiceError)) throw error;
+                send(ws, { type: 'voice', action: 'error', code: error.code, message: error.message });
+              }
               break;
             default: throw new GameError('INVALID_MESSAGE', 'Azione non riconosciuta.');
           }
@@ -195,8 +224,10 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
       byAddress.set(address, Math.max(0, (byAddress.get(address) || 1) - 1));
       if (byAddress.get(address) === 0) byAddress.delete(address);
       const session = sockets.get(ws);
+      const seat = seatOf.get(ws);
       sockets.delete(ws);
       if (session) engine.disconnect(session.code, session.playerId);
+      if (seat && voice.drop(seat.code, seat.playerId)) publishVoice(seat.code);
     });
     ws.on('error', () => { /* close handles session cleanup */ });
   });
