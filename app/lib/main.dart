@@ -24,7 +24,8 @@ import 'ui/deck_art.dart';
 import 'ui/game_world.dart';
 import 'ui/store_links.dart';
 import 'bluetooth/bluetooth_controller.dart';
-import 'voice_chat.dart';
+import 'voice/lobby_voice.dart';
+import 'voice/voice_controls.dart';
 
 const _systemFontFallback = ['Apple Color Emoji', 'Noto Color Emoji'];
 const _fallbackTextStyle = TextStyle(fontFamilyFallback: _systemFontFallback);

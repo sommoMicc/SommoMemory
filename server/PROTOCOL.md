@@ -227,25 +227,53 @@ new tab's stored seat. A completed game returns home without a forfeit warning.
 
 ## Voice extension: `voice-v1`
 
-Updated clients may advertise `voice-v1`. Voice is optional and covers the whole
-room: there is no private side channel. A seated player sends `{type:"voice",action:"join"}`
-to enter and `leave` to exit without leaving the match. `mute` updates only that
-player's muted flag. Joining again bumps `generation` so peers renegotiate after
-a reconnect. The server broadcasts:
+Updated clients advertise `voice-v1`. Voice is optional and covers the whole
+room: there is no private side channel. Only seats that advertised `voice-v1`
+can send or receive `voice` messages; others get `VOICE_UNSUPPORTED` and never
+see a roster.
+
+Client messages (`type:"voice"`):
+
+| `action` | Fields | Effect |
+| --- | --- | --- |
+| `join` | optional `muted` boolean | Enters the channel. Every join, including a repeat, takes a **new generation**; generations are never reused. Re-joining is how a client asks both ends to rebuild their audio link. |
+| `leave` | none | Leaves voice without leaving the match. |
+| `mute` | `muted` boolean | Updates the muted flag. No broadcast when it is unchanged. |
+| `signal` | `to`, `kind` (`offer`/`answer`/`ice`), `generation`, optional `peerGeneration`, `payload` | Relays one description or candidate. |
+
+Server messages:
 
 ```json
-{ "type": "voice", "action": "state", "members": [{"id":"player-id","muted":false,"generation":1}] }
+{ "type": "voice", "action": "config", "iceServers": [{"urls": ["stun:…"]}] }
+{ "type": "voice", "action": "state", "members": [{"id":"player-id","muted":false,"generation":7}] }
+{ "type": "voice", "action": "signal", "from": "player-id", "kind": "offer", "generation": 7, "peerGeneration": 9, "payload": {} }
+{ "type": "voice", "action": "error", "code": "NOT_IN_VOICE", "message": "…" }
 ```
 
-An empty channel does not insert a message between `session` and `state`. A
-snapshot follows `state` only when someone is already in voice. `signal` relays
-one `offer`, `answer` or `ice` payload to another voice member in the same room.
-The description is not stored, logged or included in admin history.
-Audio is peer-to-peer. A stale `generation`, a target outside the room, or a
-player who has not joined voice is rejected with `{type:"voice",action:"error"}`
-and does not end the match. Closing the socket, leaving the seat or closing the
-room drops membership immediately. Clients that do not send `voice` are never
-placed in the channel.
+`config` answers each `join` with the ICE servers to use. STUN comes from
+`VOICE_STUN_URLS` (public defaults). TURN is offered only when `VOICE_TURN_URLS`
+and `VOICE_TURN_SECRET` are both set; its username and credential are derived
+per request with the coturn `use-auth-secret` scheme and expire after
+`VOICE_TURN_TTL_SECONDS` (default 14400). The shared secret never reaches a
+client. TURN relays only encrypted media.
+
+An empty channel does not insert a message between `session` and `state`; a
+roster follows only when someone is already in voice. Membership belongs to the
+connection that joined: closing that socket, leaving the seat, resuming the seat
+on another socket or closing the room ends it immediately, and a late close of a
+replaced socket cannot remove the new connection's membership.
+
+A peer link is identified by the pair of generations. `signal.generation` is the
+sender's own generation and `peerGeneration` the one it believes the target has.
+The relay forwards a signal only while both are current and stamps the
+forwarded message with the target's generation; a stale pair, or a target that
+just left, is dropped silently because the next roster already reports the
+change. Clients that omit `peerGeneration` (build 30018) are still relayed on the
+sender's generation alone. Errors (`NOT_IN_VOICE`, `INVALID_SIGNAL`,
+`VOICE_UNSUPPORTED`, `RATE_LIMITED`) never end the match. Voice signaling has its
+own allowance of 120 messages per 10 seconds on top of the game allowance.
+Descriptions are not stored, logged or included in admin history; audio is
+peer-to-peer.
 
 ## Operational behavior
 

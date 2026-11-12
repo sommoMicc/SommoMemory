@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audio_session.dart';
+
 enum GameFeedbackEvent { flip, match, mismatch, turn }
 
 /// Injection boundary: play completes only after its cue has stopped.
@@ -56,7 +58,10 @@ class GameFeedback {
 
   GameFeedbackAudio get _sound => _audio ??= AudioplayersGameAudio();
   bool get _canPlay => _active && !_disposed;
-  bool get soundEnabled => prefs.getBool('sound') ?? true;
+  // While a voice call holds the process audio session, cue playback would
+  // reconfigure and deactivate it underneath the call. Haptics still play.
+  bool get soundEnabled =>
+      (prefs.getBool('sound') ?? true) && (kIsWeb || !voiceCallActive.value);
   bool get hapticsEnabled => prefs.getBool('haptics') ?? true;
 
   /// For tests and orderly shutdown; UI callbacks do not await audio.

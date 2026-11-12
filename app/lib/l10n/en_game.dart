@@ -101,6 +101,9 @@ const Map<String, String> enGameStrings = {
   "Microfono non disponibile. Puoi continuare senza voce.":
       "Microphone unavailable. You can keep playing without voice.",
   "Voce non disponibile.": "Voice unavailable.",
+  "Connessione voce…": "Connecting voice…",
+  "Impossibile collegare la voce. Esci dalla voce e riprova.":
+      "Couldn't connect voice. Leave voice and try again.",
   "Chiudi lobby": "Close lobby",
   "Esci dalla lobby": "Leave lobby",
   "Risultato finale · Pareggio": "Final result · Draw",

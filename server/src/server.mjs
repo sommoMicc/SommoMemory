@@ -4,7 +4,7 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket, WebSocketServer } from 'ws';
 import { GameEngine, GameError } from './game.mjs';
-import { createVoiceRelay, VoiceError } from './voice.mjs';
+import { createIceProvider, createVoiceRelay, iceConfigFromEnv, VoiceError } from './voice.mjs';
 import { EconomyStore, EconomyError } from './economy.mjs';
 import { economyApi } from './economy-http.mjs';
 import { createAuthService } from './auth.mjs';
@@ -21,7 +21,7 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
   webDir = process.env.WEB_DIR || resolve(here, '../../app/build/web'),
   allowedOrigins = process.env.ALLOWED_ORIGINS || 'https://sommomemory.sommomi.cc,http://localhost:8080,http://127.0.0.1:8080',
   trustProxy = process.env.TRUST_PROXY === '1', engine: providedEngine, economy: providedEconomy,
-  authConfig, verifyIdentity, adminConfig } = {}) {
+  authConfig, verifyIdentity, adminConfig, voiceConfig } = {}) {
   const economy = providedEconomy || new EconomyStore({ dataDir });
   const engine = providedEngine || new GameEngine({ dataDir,
     ownsDeck: (id, theme) => economy.ownsDeck(id, theme), onCompleted: room => economy.rewardOnline(room),
@@ -51,20 +51,25 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
     else if (ws.bufferedAmount >= 256 * 1024) ws.terminate();
   };
   const sessionsFor = code => [...sockets.values()].filter(s => s.code === code);
-  const voice = createVoiceRelay();
-  const seatOf = new WeakMap();
-  const publishVoice = code => {
-    const message = voice.stateMessage(code);
-    for (const session of sessionsFor(code)) send(session.ws, message);
+  const voice = createVoiceRelay({ iceServers: createIceProvider(voiceConfig ?? iceConfigFromEnv()) });
+  // Voice traffic reaches only seats whose client advertised the extension.
+  const hearsVoice = (code, playerId) => {
+    const features = engine.rooms.get(code)?.players.find(player => player.id === playerId)?.supportedFeatures;
+    return Array.isArray(features) && features.includes('voice-v1');
   };
-  const relayVoice = (code, playerId, message) => {
-    const room = engine.room(code);
-    const result = voice.handle(code, playerId, message, room.players.map(player => player.id));
-    if (result.broadcast) publishVoice(code);
-    if (result.relay) {
-      const target = sessionsFor(code).find(session => session.playerId === result.relay.to);
-      if (target) send(target.ws, result.relay.message);
+  const publishVoice = code => {
+    if (!code) return;
+    const message = voice.stateMessage(code);
+    for (const session of sessionsFor(code)) {
+      if (hearsVoice(code, session.playerId)) send(session.ws, message);
     }
+  };
+  const relayVoice = (ws, { code, playerId }, message) => {
+    if (!hearsVoice(code, playerId)) throw new VoiceError('VOICE_UNSUPPORTED', 'Aggiorna il gioco per usare la voce.');
+    const result = voice.handle(code, playerId, ws, message);
+    if (result.reply) send(ws, result.reply);
+    if (result.broadcast) publishVoice(code);
+    if (result.relay) send(result.relay.conn, result.relay.message);
   };
 
   const http = createServer(async (req, res) => {
@@ -154,10 +159,12 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
     byAddress.set(address, (byAddress.get(address) || 0) + 1);
     ws.alive = true;
     ws.on('pong', () => { ws.alive = true; });
-    let windowStart = Date.now(), count = 0;
+    let windowStart = Date.now(), count = 0, voiceCount = 0;
     ws.on('message', (raw, isBinary) => {
-      if (Date.now() - windowStart > 10_000) { windowStart = Date.now(); count = 0; }
-      if (++count > 120) { ws.close(1008, 'Rate limit'); return; }
+      if (Date.now() - windowStart > 10_000) { windowStart = Date.now(); count = 0; voiceCount = 0; }
+      // Every message counts. Voice signaling earns its own allowance below, so
+      // an ICE burst cannot spend the 120 actions reserved for the match.
+      if (++count > 120 + Math.min(voiceCount, 240)) { ws.close(1008, 'Rate limit'); return; }
       try {
         if (isBinary) throw new GameError('INVALID_MESSAGE', 'Invia un messaggio valido.');
         let message;
@@ -176,19 +183,24 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
           const previous = [...sockets.values()].find(s => s.code === session.code && s.playerId === session.playerId);
           if (previous) {
             sockets.delete(previous.ws);
+            publishVoice(voice.disconnect(previous.ws));
             previous.ws.close(4001, 'Session resumed on another connection');
           }
           sockets.set(ws, { ws, ...session });
-          seatOf.set(ws, { code: session.code, playerId: session.playerId });
           economy.markActive(engine.room(session.code).players.find(p => p.id === session.playerId)?.profileId);
           send(ws, { type: 'session', ...session });
           send(ws, engine.state(session.code, session.playerId));
           const voiceSnapshot = voice.stateMessage(session.code);
-          if (voiceSnapshot.members.length) send(ws, voiceSnapshot);
+          if (voiceSnapshot.members.length && hearsVoice(session.code, session.playerId)) send(ws, voiceSnapshot);
         } else if (message.type === 'preview') send(ws, { type: 'roomPreview', roomPreview: engine.preview(message) });
         else if (message.type === 'ping') send(ws, { type: 'pong', time: Date.now() });
         else {
           if (!current) throw new GameError('NO_SESSION', 'Entra in una stanza per giocare.');
+          if (message.type === 'voice' && ++voiceCount > 120) {
+            // Over the voice budget the signal is dropped; the match goes on.
+            if (voiceCount === 121) send(ws, { type: 'voice', action: 'error', code: 'RATE_LIMITED', message: 'Troppi segnali vocali. Riprova tra poco.' });
+            return;
+          }
           economy.markActive(engine.room(current.code).players.find(p => p.id === current.playerId)?.profileId);
           switch (message.type) {
             case 'flip': engine.flip(current.code, current.playerId, message.index); break;
@@ -197,12 +209,12 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
             case 'rematch': engine.rematch(current.code, current.playerId); break;
             case 'leave':
               sockets.delete(ws);
-              if (voice.drop(current.code, current.playerId)) publishVoice(current.code);
+              publishVoice(voice.disconnect(ws));
               engine.leave(current.code, current.playerId);
               send(ws, { type: 'left' });
               break;
             case 'voice':
-              try { relayVoice(current.code, current.playerId, message); }
+              try { relayVoice(ws, current, message); }
               catch (error) {
                 if (!(error instanceof VoiceError)) throw error;
                 send(ws, { type: 'voice', action: 'error', code: error.code, message: error.message });
@@ -224,10 +236,9 @@ export function startServer({ port = Number(process.env.PORT || 8787), host = pr
       byAddress.set(address, Math.max(0, (byAddress.get(address) || 1) - 1));
       if (byAddress.get(address) === 0) byAddress.delete(address);
       const session = sockets.get(ws);
-      const seat = seatOf.get(ws);
       sockets.delete(ws);
+      publishVoice(voice.disconnect(ws));
       if (session) engine.disconnect(session.code, session.playerId);
-      if (seat && voice.drop(seat.code, seat.playerId)) publishVoice(seat.code);
     });
     ws.on('error', () => { /* close handles session cleanup */ });
   });

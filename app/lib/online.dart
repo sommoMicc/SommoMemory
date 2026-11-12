@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'decks.dart';
+import 'voice/voice_engine.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class RoomPreview {
@@ -72,7 +73,7 @@ class RoomPreview {
   }
 }
 
-class OnlineGame extends ChangeNotifier {
+class OnlineGame extends ChangeNotifier implements VoiceChannel {
   OnlineGame(this.prefs, {String? serverUrl})
     : _serverUrl = serverUrl ?? endpoint,
       _roomCode = prefs.getString('room.code'),
@@ -95,20 +96,38 @@ class OnlineGame extends ChangeNotifier {
   int _sessionEpoch = 0;
   DateTime? _lastSeen;
   Map<String, dynamic>? state;
-  String? playerId, error, errorCode;
+  @override
+  String? playerId;
+  String? error, errorCode;
   RoomPreview? _roomPreview;
   bool _terminalError = false;
   String status = 'Connessione…';
   bool connected = false, _closed = false, _connecting = false;
-  int _attempt = 0, _generation = 0;
+  int _attempt = 0, _generation = 0, _seatedGeneration = -1;
   static const _supportedFeatures = [
     'ranked-v1',
     'ranked-attempts-v1',
     'lobby-v1',
     'voice-v1',
   ];
-  final StreamController<Map<String, dynamic>> voiceEvents =
+  final StreamController<Map<String, dynamic>> _voice =
       StreamController<Map<String, dynamic>>.broadcast();
+  Map<String, dynamic>? _voiceRoster;
+
+  /// True once the server confirmed the seat on the live connection: only
+  /// then are room-scoped extensions such as voice allowed to send.
+  @override
+  bool get seated => connected && _seatedGeneration == _generation;
+
+  /// Counts confirmed seats; a new value means a new connection to the room.
+  @override
+  int sessionSerial = 0;
+  @override
+  Stream<Map<String, dynamic>> get voiceMessages => _voice.stream;
+
+  /// Latest voice roster of this connection, for listeners that attach late.
+  @override
+  Map<String, dynamic>? get voiceRoster => _voiceRoster;
   String? get code => _roomCode;
   bool get hasSession => _roomCode != null && _token != null;
   RoomPreview? get roomPreview => _roomPreview;
@@ -204,6 +223,9 @@ class OnlineGame extends ChangeNotifier {
                   _activeRanked = true;
                 }
                 _pendingAction = null;
+                _seatedGeneration = generation;
+                sessionSerial++;
+                _voiceRoster = null;
                 _handshake?.cancel();
                 unawaited(_saveSession());
                 status = 'Online';
@@ -284,8 +306,10 @@ class OnlineGame extends ChangeNotifier {
                 }
                 break;
               case 'voice':
-                if (!voiceEvents.isClosed) voiceEvents.add(msg);
-                break;
+                if (!seated) return;
+                if (msg['action'] == 'state') _voiceRoster = msg;
+                if (!_voice.isClosed) _voice.add(msg);
+                return;
               case 'left':
                 _endSession(
                   error ?? 'Hai lasciato la stanza.',
@@ -376,6 +400,7 @@ class OnlineGame extends ChangeNotifier {
     _changed();
   }
 
+  @override
   void send(Map<String, dynamic> action) {
     if (_terminalError) return;
     if (!connected || _channel == null) {
@@ -516,7 +541,7 @@ class OnlineGame extends ChangeNotifier {
     _retry?.cancel();
     _heartbeat?.cancel();
     _handshake?.cancel();
-    unawaited(voiceEvents.close());
+    unawaited(_voice.close());
     unawaited(_detachChannel());
     super.dispose();
   }

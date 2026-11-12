@@ -17,6 +17,9 @@ services:
       ALLOWED_ORIGINS: https://sommomemory.sommomi.cc
       TRUST_PROXY: "1"
       ADMIN_ORIGIN: https://sommomemory.sommomi.cc
+      VOICE_STUN_URLS: ${VOICE_STUN_URLS-stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302}
+      VOICE_TURN_URLS: ${VOICE_TURN_URLS:-}
+      VOICE_TURN_SECRET: ${VOICE_TURN_SECRET:-}
     ports:
       - "127.0.0.1:8798:8798"
     volumes:
