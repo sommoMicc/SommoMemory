@@ -1,0 +1,5 @@
+SommoMemory 3.1.1 (30019) — Chat vocale facoltativa nelle lobby
+
+Nelle lobby online i partecipanti possono attivare la chat vocale e silenziare il microfono. La funzione è facoltativa e l’audio non viene registrato.
+
+Prova ad attivare e disattivare la voce, silenziare il microfono, uscire e rientrare nella lobby, gestire i permessi del microfono e recuperare dopo un’interruzione di rete. Verifica anche che lasciare la lobby chiuda la connessione vocale. Segnala modello del dispositivo, versione del sistema e passaggi per riprodurre eventuali problemi.

@@ -1,0 +1,108 @@
+{
+  "appId": "6831015201",
+  "bundleId": "cc.sommomi.mymemory",
+  "version": "3.1.0",
+  "build": "30018",
+  "sha256": "85ec98d29051a69c16449fa669c811f1b5b83fd9db20f79ad6d87a2cd66807a8",
+  "buildUploadId": "61a39800-0613-4cc1-a2aa-6ccb276c4511",
+  "createdAt": "2026-11-12T06:19:12.266Z",
+  "reusedEmptyUpload": true,
+  "buildUploadFileId": "de48f25c-bd5f-444d-9463-591837faa606",
+  "binaryPartsUploaded": [
+    {
+      "part": 1,
+      "offset": 47185920,
+      "length": 5242880
+    },
+    {
+      "part": 2,
+      "offset": 36700160,
+      "length": 5242880
+    },
+    {
+      "part": 3,
+      "offset": 26214400,
+      "length": 5242880
+    },
+    {
+      "part": 4,
+      "offset": 73400320,
+      "length": 4107249
+    },
+    {
+      "part": 5,
+      "offset": 20971520,
+      "length": 5242880
+    },
+    {
+      "part": 6,
+      "offset": 62914560,
+      "length": 5242880
+    },
+    {
+      "part": 7,
+      "offset": 68157440,
+      "length": 5242880
+    },
+    {
+      "part": 8,
+      "offset": 0,
+      "length": 5242880
+    },
+    {
+      "part": 9,
+      "offset": 41943040,
+      "length": 5242880
+    },
+    {
+      "part": 10,
+      "offset": 57671680,
+      "length": 5242880
+    },
+    {
+      "part": 11,
+      "offset": 10485760,
+      "length": 5242880
+    },
+    {
+      "part": 12,
+      "offset": 15728640,
+      "length": 5242880
+    },
+    {
+      "part": 13,
+      "offset": 5242880,
+      "length": 5242880
+    },
+    {
+      "part": 14,
+      "offset": 52428800,
+      "length": 5242880
+    },
+    {
+      "part": 15,
+      "offset": 31457280,
+      "length": 5242880
+    }
+  ],
+  "binaryUploadCompleteAt": "2026-11-12T06:19:26.570Z",
+  "committedAt": "2026-11-12T06:19:29.595Z",
+  "assetDeliveryState": {
+    "errors": [],
+    "warnings": [],
+    "state": "COMPLETE"
+  },
+  "processingState": "FAILED",
+  "buildProcessingState": null,
+  "rejection": [
+    {
+      "code": "90186",
+      "description": "Invalid Pre-Release Train: version 3.1.0 is closed for new build submissions."
+    },
+    {
+      "code": "90062",
+      "description": "CFBundleShortVersionString must be higher than the previously approved version 3.1.0."
+    }
+  ],
+  "lastCheckedAt": "2026-11-12T06:20:12.921Z"
+}
