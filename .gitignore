@@ -52,6 +52,7 @@ Caddyfile.before-*
 *.ipa
 *.xcarchive/
 /artifacts/*-mapping.txt
+/artifacts/*-native-debug-symbols.zip
 
 # Keep superseded Console drafts and private deletion review screenshots local.
 /artifacts/play-internal-draft.jpg

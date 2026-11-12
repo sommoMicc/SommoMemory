@@ -1,6 +1,24 @@
 # Android — new app and historical listing
 
-## 30017 — Italian and English
+## 30020 — Optional voice chat, internal testing
+
+Verified **12 November 2026**: **3.1.1 (30020)** is active on the existing
+internal track `internal` as **3.1.1 Chat vocale**. The Android Publisher API
+read the previous active build 30017, uploaded the new signed AAB, replaced only
+the internal-track release, committed the edit, and read back build 30020 as
+`completed`. The existing tester audience was not modified; no production track
+or store listing was changed. Receipt: `artifacts/play-internal-30020.json`.
+
+The optional room-wide voice chat captures microphone audio only. The signed
+AAB is 109,182,407 bytes, SHA-256
+`50076c19f50d2e0fb826d89d49823435f66fd4aba495232ca14c4042984d7e0f`; its
+package/version and bundletool validation passed for `cc.sommomi.mymemory`,
+versionName 3.1.1, versionCode 30020, min SDK 24 and target SDK 36. It is signed
+by the existing upload certificate. R8 mapping and native debugging symbols are
+embedded in the AAB. Italian, en-US and en-GB internal release notes are in the
+receipt.
+
+## 30017 — Italian and English (previous internal release)
 
 Verified **6 November 2026**: **3.1.0 (30017)** is active on the existing internal
 track as release **15**, **3.1.0 Sala giochi pop · English**. The English UI follows
@@ -73,11 +91,11 @@ testing, and deletion of the historical app. The new Console record is created:
 | Language/category/pricing | Italian `it-IT`, game, free |
 | Internal track ID | `4700857721365894827` |
 | Tester list | MyMemory test interno; three existing users observed; unchanged |
-| Release | 15, version `3.1.0 (30017)`; **active on internal track** |
-| Binary | **3.1.0 (30017)** uploaded and accepted |
+| Release | **3.1.1 (30020)**, 3.1.1 Chat vocale; **active on internal track** |
+| Binary | **3.1.1 (30020)** uploaded and accepted |
 | Track status | **Attivo** |
 | App signing | Releases signed by Google Play; no new terms prompt appeared |
-| Production | Build 30017 submitted for review for 28 countries; rollout awaits approval |
+| Production | Build 30017 remains in review for 28 countries; 30020 changed only internal testing |
 
 [New app dashboard](https://play.google.com/console/u/0/developers/5468026965874523214/app/4972469070574777722/app-dashboard)
 and [internal release details](https://play.google.com/console/u/0/developers/5468026965874523214/app/4972469070574777722/tracks/4700857721365894827/releases/15/details).
@@ -88,21 +106,22 @@ It was opened in the owner's signed-in browser and showed the invitation to test
 accepted on the user's behalf. The tester must open it with the account included
 in the selected tester list and accept the invitation before installation.
 
-The current AAB is `artifacts/SommoMemory-3.1.0-30017.aab` (91,393,410 bytes;
-SHA-256 `958acdacdbdd8eb4c039098c425afd06195398016785df909e22f78a4503d80b`).
-Its local JAR signature check reports verified; Play release 15 is active on the
+The current AAB is `artifacts/SommoMemory-3.1.1-30020.aab` (109,182,407 bytes;
+SHA-256 `50076c19f50d2e0fb826d89d49823435f66fd4aba495232ca14c4042984d7e0f`).
+Its local JAR signature and bundletool checks passed; build 30020 is active on the
 existing internal track. The upload/activation receipt is
-`artifacts/play-internal-30017.json`. Localized listing and market preparation is
+`artifacts/play-internal-30020.json`. Localized listing and market preparation is
 tracked in `artifacts/store-30017/`; listing changes remain separate from internal
-testing. Production review submission is now in progress; no public rollout has
-occurred yet.
+testing. Production review submission is unchanged; no public rollout was made
+for build 30020.
 
 Google temporarily displays the unreviewed package name instead of the eventual
 store name for this new internal app. This release is **internal only**, not a
 production listing. Console accepted the binary with min API 24, target API 36,
 three ABIs, and ReTrace mapping/native symbols attached.
 
-Build **30017** is the current internal binary. Build **30014** added the illustrated journey
+Build **30020** is the current internal binary. Build **30017** added the bilingual
+interface and pop arcade redesign; build **30014** added the illustrated journey
 map and offline solo games with gems, collection unlocks and automatically
 synchronized progress and records; crowns remain reserved for ranked games. The existing internal tester
 audience is unchanged. Build **30013** and the feature and package details below

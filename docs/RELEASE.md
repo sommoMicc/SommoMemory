@@ -1,6 +1,6 @@
 # SommoMemory release readiness
 
-## 3.1.1 (30020) — Optional lobby voice, TestFlight
+## 3.1.1 (30020) — Optional lobby voice, TestFlight and Play internal
 
 On **12 November 2026**, TestFlight build **3.1.1 (30020)** processed as
 **VALID** and entered **IN_BETA_TESTING** in the existing **SommoMemory
@@ -8,6 +8,11 @@ Internal** group. The group still contains exactly the two existing testers;
 the App Store Connect API attached the build and Italian beta notes without
 creating testers or invitations. Receipt:
 `artifacts/testflight-upload-30020.json`.
+
+Google Play's existing internal track is also active with versionCode **30020**,
+release name **3.1.1 Chat vocale**, and status `completed`. The Android Publisher
+API preserved the track's tester configuration and did not change the production
+track or listing. Receipt: `artifacts/play-internal-30020.json`.
 
 The beta adds optional room-wide voice chat. It captures microphone audio only,
 does not activate the camera or record audio, and supports mute and recovery
@@ -21,7 +26,7 @@ Build 30018 was rejected because the App Store version 3.1.0 train had closed.
 Build 30019 was rejected because `NSCameraUsageDescription` was missing. Both
 attempt receipts are retained as `artifacts/testflight-upload-30018-failed.json`
 and `artifacts/testflight-upload-30019-failed.json`. No App Store review
-submission, Google Play upload or website deployment was performed for 30020.
+submission or website deployment was performed for 30020.
 
 ## 30017 — Italian and English
 

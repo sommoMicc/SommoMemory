@@ -1,0 +1,56 @@
+{
+  "packageName": "cc.sommomi.mymemory",
+  "versionName": "3.1.1",
+  "versionCode": 30020,
+  "builtAt": "2026-11-12T08:16:46.909Z",
+  "artifacts": {
+    "aab": {
+      "path": "SommoMemory-3.1.1-30020.aab",
+      "bytes": 109182407,
+      "sha256": "50076c19f50d2e0fb826d89d49823435f66fd4aba495232ca14c4042984d7e0f"
+    },
+    "mapping": {
+      "path": "SommoMemory-3.1.1-30020-mapping.txt",
+      "bytes": 13843490,
+      "sha256": "c833e777b8ac6c6bbb95c54fd67093ae3df860de92d445d45f6da9611f85c299"
+    },
+    "nativeDebugSymbols": {
+      "path": "SommoMemory-3.1.1-30020-native-debug-symbols.zip",
+      "bytes": 28417896,
+      "sha256": "3deb7d4ddbb747c89ea0157d8647d3def52e6bba8ba3b4fa4ffddb0b74bb9c6c"
+    }
+  },
+  "signing": {
+    "certificateSha256": "404D6F54025C024007E37F2A25352CB84471268A1C6C0D78C17A9565E12BED67",
+    "aab": "jarsigner verified"
+  },
+  "bundleVerification": {
+    "bundletoolValidate": "passed",
+    "manifestPackage": "cc.sommomi.mymemory",
+    "manifestVersionCode": 30020,
+    "manifestVersionName": "3.1.1",
+    "minSdk": 24,
+    "targetSdk": 36,
+    "mappingEmbeddedInAab": true,
+    "nativeDebugSymbolsEmbeddedInAab": true
+  },
+  "googlePlay": {
+    "appId": "4972469070574777722",
+    "developerId": "5468026965874523214",
+    "track": "internal",
+    "internalTrackId": "4700857721365894827",
+    "releaseName": "3.1.1 Chat vocale",
+    "status": "completed",
+    "versionCodes": [
+      "30020"
+    ],
+    "testerAudienceChanged": false,
+    "productionRelease": false,
+    "committedAt": "2026-11-12T08:16:46.966Z"
+  },
+  "releaseNotes": {
+    "it-IT": "La chat vocale facoltativa è disponibile nelle lobby online. Puoi attivarla e silenziare il microfono. L’audio non viene registrato. Migliorato il recupero dopo interruzioni di rete.",
+    "en-US": "Optional voice chat is now available in online lobbies. You can turn it on and mute your microphone. Audio isn't recorded. Recovery after network interruptions is improved.",
+    "en-GB": "Optional voice chat is now available in online lobbies. You can turn it on and mute your microphone. Audio isn't recorded. Recovery after network interruptions is improved."
+  }
+}
