@@ -1,5 +1,28 @@
 # SommoMemory release readiness
 
+## 3.1.1 (30020) — Optional lobby voice, TestFlight
+
+On **12 November 2026**, TestFlight build **3.1.1 (30020)** processed as
+**VALID** and entered **IN_BETA_TESTING** in the existing **SommoMemory
+Internal** group. The group still contains exactly the two existing testers;
+the App Store Connect API attached the build and Italian beta notes without
+creating testers or invitations. Receipt:
+`artifacts/testflight-upload-30020.json`.
+
+The beta adds optional room-wide voice chat. It captures microphone audio only,
+does not activate the camera or record audio, and supports mute and recovery
+after leaving or losing a connection. iOS includes localized camera-purpose
+strings because the bundled WebRTC runtime references camera APIs; the strings
+state that the app does not activate the camera or transmit video. Signed IPA:
+`artifacts/SommoMemory-3.1.1-30020.ipa`, SHA-256
+`040c3cb78128e0a04591aa6b4c01720a8adf5411e2153eaa711798ae0f3db439`.
+
+Build 30018 was rejected because the App Store version 3.1.0 train had closed.
+Build 30019 was rejected because `NSCameraUsageDescription` was missing. Both
+attempt receipts are retained as `artifacts/testflight-upload-30018-failed.json`
+and `artifacts/testflight-upload-30019-failed.json`. No App Store review
+submission, Google Play upload or website deployment was performed for 30020.
+
 ## 30017 — Italian and English
 
 The final bilingual revision is **3.1.0 (30017)**. It preserves the approved pop
