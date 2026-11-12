@@ -1,0 +1,104 @@
+{
+  "appId": "6831015201",
+  "bundleId": "cc.sommomi.mymemory",
+  "version": "3.1.1",
+  "build": "30019",
+  "sha256": "2a133e8fe152ea2038d04d8604ff3ecac6ce8db7aba83300a16f94e06c136621",
+  "buildUploadId": "fb696915-955a-419f-99aa-e4d0f3a113cd",
+  "createdAt": "2026-11-12T06:24:50.063Z",
+  "reusedEmptyUpload": true,
+  "buildUploadFileId": "6e12c1a5-6053-41b8-8a0f-18c20a8076c2",
+  "binaryPartsUploaded": [
+    {
+      "part": 1,
+      "offset": 47185920,
+      "length": 5242880
+    },
+    {
+      "part": 2,
+      "offset": 68157440,
+      "length": 5242880
+    },
+    {
+      "part": 3,
+      "offset": 10485760,
+      "length": 5242880
+    },
+    {
+      "part": 4,
+      "offset": 15728640,
+      "length": 5242880
+    },
+    {
+      "part": 5,
+      "offset": 62914560,
+      "length": 5242880
+    },
+    {
+      "part": 6,
+      "offset": 73400320,
+      "length": 4107221
+    },
+    {
+      "part": 7,
+      "offset": 31457280,
+      "length": 5242880
+    },
+    {
+      "part": 8,
+      "offset": 5242880,
+      "length": 5242880
+    },
+    {
+      "part": 9,
+      "offset": 26214400,
+      "length": 5242880
+    },
+    {
+      "part": 10,
+      "offset": 41943040,
+      "length": 5242880
+    },
+    {
+      "part": 11,
+      "offset": 36700160,
+      "length": 5242880
+    },
+    {
+      "part": 12,
+      "offset": 0,
+      "length": 5242880
+    },
+    {
+      "part": 13,
+      "offset": 52428800,
+      "length": 5242880
+    },
+    {
+      "part": 14,
+      "offset": 57671680,
+      "length": 5242880
+    },
+    {
+      "part": 15,
+      "offset": 20971520,
+      "length": 5242880
+    }
+  ],
+  "binaryUploadCompleteAt": "2026-11-12T06:25:05.059Z",
+  "committedAt": "2026-11-12T06:25:08.699Z",
+  "assetDeliveryState": {
+    "errors": [],
+    "warnings": [],
+    "state": "COMPLETE"
+  },
+  "processingState": "FAILED",
+  "buildProcessingState": null,
+  "rejection": [
+    {
+      "code": "90683",
+      "description": "Missing NSCameraUsageDescription. The bundled WebRTC runtime references camera APIs; the app's voice chat captures audio only."
+    }
+  ],
+  "lastCheckedAt": "2026-11-12T06:26:18.268Z"
+}

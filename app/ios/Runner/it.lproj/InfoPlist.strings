@@ -1,3 +1,4 @@
+"NSCameraUsageDescription" = "La chat vocale facoltativa usa un componente audio che può richiedere l’autorizzazione alla fotocamera; SommoMemory non la attiva né trasmette video.";
 "NSMicrophoneUsageDescription" = "SommoMemory usa il microfono solo se attivi la chat vocale facoltativa della lobby.";
 "NSBluetoothAlwaysUsageDescription" = "SommoMemory usa il Bluetooth per giocare con un amico vicino, anche senza Internet.";
 "NSBluetoothPeripheralUsageDescription" = "SommoMemory usa il Bluetooth per giocare con un amico vicino, anche senza Internet.";

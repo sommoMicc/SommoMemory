@@ -1,3 +1,4 @@
+"NSCameraUsageDescription" = "Optional voice chat uses an audio component that may require camera permission; SommoMemory doesn't activate the camera or transmit video.";
 "NSMicrophoneUsageDescription" = "SommoMemory uses the microphone only if you turn on the optional lobby voice chat.";
 "NSBluetoothAlwaysUsageDescription" = "SommoMemory uses Bluetooth to play with a nearby friend, even without an internet connection.";
 "NSBluetoothPeripheralUsageDescription" = "SommoMemory uses Bluetooth to play with a nearby friend, even without an internet connection.";

@@ -94,6 +94,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>La chat vocale facoltativa usa un componente audio che può richiedere l’autorizzazione alla fotocamera; SommoMemory non la attiva né trasmette video.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SommoMemory usa il microfono solo se attivi la chat vocale facoltativa della lobby.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
