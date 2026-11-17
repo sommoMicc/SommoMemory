@@ -1,0 +1,5 @@
+SommoMemory 3.1.1 (30021) — Lobby amichevoli fino a 8 giocatori
+
+Le lobby amichevoli online ora accolgono fino a 8 giocatori. La partita inizia quando almeno due giocatori sono presenti e tutti hanno scelto Pronto. I turni passano in ordine; vince chi trova più coppie, con vittoria condivisa in caso di parità al vertice. Chi esce o resta offline oltre il tempo di riconnessione lascia la partita e gli altri continuano. La classificata resta 1 contro 1.
+
+Prova a riempire una lobby con più dispositivi, a uscire e rientrare durante la partita, a giocare una rivincita e a usare la chat vocale con più persone. Segnala modello del dispositivo, versione del sistema e passaggi per riprodurre eventuali problemi.

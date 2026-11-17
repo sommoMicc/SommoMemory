@@ -1,0 +1,21 @@
+{
+  "packageName": "cc.sommomi.mymemory",
+  "versionName": "3.1.1",
+  "versionCode": 30021,
+  "googlePlay": {
+    "track": "internal",
+    "releaseName": "3.1.1 Multiplayer fino a 8",
+    "status": "completed",
+    "versionCodes": [
+      "30021"
+    ],
+    "productionRelease": false,
+    "testerAudienceChanged": false,
+    "committedAt": "2026-11-17T13:02:23.445Z"
+  },
+  "releaseNotes": {
+    "it-IT": "Le lobby amichevoli online accolgono fino a 8 giocatori: si parte quando tutti sono pronti, i turni passano in ordine e chi esce lascia gli altri a giocare. La classificata resta 1 contro 1.",
+    "en-US": "Online friendly lobbies now hold up to 8 players: the game starts when everyone is ready, turns rotate in order, and when someone leaves the others carry on. Ranked stays 1v1.",
+    "en-GB": "Online friendly lobbies now hold up to 8 players: the game starts when everyone is ready, turns rotate in order, and when someone leaves the others carry on. Ranked stays 1v1."
+  }
+}

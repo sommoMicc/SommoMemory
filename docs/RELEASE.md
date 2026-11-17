@@ -1,5 +1,29 @@
 # SommoMemory release readiness
 
+## 3.1.1 (30021) — Friendly lobbies for up to eight players
+
+On **17 November 2026**, build **3.1.1 (30021)** was distributed:
+
+- TestFlight: **VALID / IN_BETA_TESTING** in **SommoMemory Internal** for the same
+  two existing testers; Italian beta notes in `artifacts/beta-notes-30021-it.txt`.
+  Receipt: `artifacts/testflight-upload-30021.json`. Signed IPA SHA-256
+  `ac9c73c71561c8694d5fb15dc6cc01b00dcb66381245a8734f7d4e7c9a78d169`.
+- Google Play: versionCode **30021**, release **3.1.1 Multiplayer fino a 8**, status
+  `completed` on the existing internal track; tester audience and production track
+  untouched. Receipt: `artifacts/play-internal-30021.json`. AAB SHA-256
+  `1b63594f12fc8093ce30c5e9c004c8c77c95302946038ede6e2a6426d2814d5b`; release APK
+  SHA-256 `43b20410a99070cd24951c4987eed5abd870578dc0033097b69029f7bdd6c8d1`.
+- Web/backend: release `20261117-multiplayer-30021`, healthy, serving
+  `main.3e97ad4fff33abbb.dart.js` (public bytes match the local build). Data volume
+  `mymemory-data` preserved. Older clients keep working: the 8-seat lobby is gated
+  by the new `multiplayer-v1` feature (see `server/PROTOCOL.md`).
+
+The Android Gradle Plugin moved from 9.1.0 to 9.1.1, the minimum required by the
+current Flutter 3.50 SDK. An empty App Store Connect upload reservation for 30021
+(created by an interrupted concurrent build) was reused; it held no files.
+Ranked stays 1v1 and Bluetooth stays 1v1. No App Store or Play production
+submission was made.
+
 ## 3.1.1 (30020) — Optional lobby voice, TestFlight and Play internal
 
 On **12 November 2026**, TestFlight build **3.1.1 (30020)** processed as
