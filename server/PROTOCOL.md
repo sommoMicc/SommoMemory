@@ -287,3 +287,19 @@ peer-to-peer.
   32 concurrent connections per network address. Server heartbeats clean up dead sockets.
 - Service is a **single instance**; persistent storage must survive container replacement.
   A future multi-instance deployment needs shared transactional storage and pub/sub.
+
+## Multiplayer extension: `multiplayer-v1`
+
+A friendly lobby created with both `lobby-v1` and `multiplayer-v1` seats up to
+8 players (`maxPlayers` in state; 2 for ranked and for rooms without the
+feature). Clients lacking `multiplayer-v1` get `UPDATE_REQUIRED` on join or
+resume, so they never see a roster they cannot render.
+
+- The game starts when at least 2 players are seated and **every** seated
+  player is connected and ready. Anyone leaving the lobby resets readiness.
+- Turns rotate in seat order, skipping players who left. A match keeps the turn.
+- A player who leaves, or stays offline past the 90 s grace, drops out; the
+  others continue. When one player remains they win by `forfeit`.
+- `winnerIds` lists every player sharing the top score (several ids = shared
+  win). `winnerId` stays set only when there is exactly one winner.
+- `rematch` needs every player still in the room; players who left lose their seat.

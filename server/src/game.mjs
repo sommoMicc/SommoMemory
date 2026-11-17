@@ -16,6 +16,8 @@ const tokenHash = token => createHash('sha256').update(token).digest('hex');
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const themes = ['garden', 'cosmos', 'ocean', 'paola', 'food', 'sports', 'travel'];
 const legacyThemes = ['garden', 'cosmos', 'ocean'];
+// Only friendly lobbies hosted by a 'multiplayer-v1' client hold more than two seats.
+const MAX_FRIENDLY_PLAYERS = 8;
 
 export class GameEngine extends EventEmitter {
   constructor({ dataDir, now = Date.now, mismatchMs = 900, graceMs = 90_000,
@@ -147,6 +149,45 @@ export class GameEngine extends EventEmitter {
   assertLobbySupport(room, supportedFeatures) {
     if (room.lobbyMode && (!Array.isArray(supportedFeatures) || !supportedFeatures.includes('lobby-v1')))
       fail('UPDATE_REQUIRED', 'Aggiorna SommoMemory per entrare in questa lobby.');
+    // Older lobby clients only render two seats, so they must not sit in a bigger room.
+    if (this.capacity(room) > 2 && !supportedFeatures?.includes('multiplayer-v1'))
+      fail('UPDATE_REQUIRED', 'Aggiorna SommoMemory per entrare in questa lobby.');
+  }
+
+  /// Seats in a room. Rooms stored before multiplayer have no `maxPlayers`.
+  capacity(room) {
+    return room.maxPlayers ?? 2;
+  }
+
+  /// Players still in the match: seated, and not gone via leave or timeout.
+  activePlayers(room) {
+    return room.players.filter(p => !p.left);
+  }
+
+  /// TODO(Michele): CORE LOGIC — whose turn comes after `room.turn`?
+  /// Called when a mismatch closes (and when the current player drops out).
+  /// Must return a player id. Rules so far: seats rotate in `room.players`
+  /// order, players with `left === true` are skipped, a match keeps the turn
+  /// (that case never reaches here). Open question for you: should a player
+  /// who is merely disconnected (not left) be skipped too?
+  /// Placeholder: correct for 2 players only, so the 3+ player tests fail.
+  nextTurnPlayerId(room) {
+    const { players } = room;
+    const from = players.findIndex(p => p.id === room.turn);
+    for (let step = 1; step <= players.length; step++) {
+      const candidate = players[(from + step) % players.length];
+      if (!candidate.left) return candidate.id;
+    }
+    return room.turn;
+  }
+
+  /// TODO(Michele): CORE LOGIC — which player ids won a completed friendly game?
+  /// Return every id sharing the top score (ties = several ids, nobody = []).
+  /// Players who left stay in the ranking with the points they scored.
+  /// Placeholder: correct for 2 players only, so the 3+ player tests fail.
+  winnersOf(players) {
+    const best = Math.max(...players.map(p => p.score));
+    return players.filter(p => p.score === best).map(p => p.id);
   }
 
   rankedSetup(room, hostPlayer, guestPlayer, draw = false) {
@@ -176,14 +217,15 @@ export class GameEngine extends EventEmitter {
 
   roomPreview(room) {
     return { code: room.code, phase: room.phase,
-      players: room.players.slice(0, 2).map(({ id, name, score, connected }) => ({ id, name, score, connected })),
-      winnerId: room.winnerId, finishReason: room.finishReason };
+      players: room.players.map(({ id, name, score, connected }) => ({ id, name, score, connected })),
+      winnerId: room.winnerId, winnerIds: room.winnerIds ?? (room.winnerId ? [room.winnerId] : []),
+      finishReason: room.finishReason };
   }
 
   preview({ code }) {
     this.tick();
     const room = this.room(code);
-    if (room.players.length !== 2 || !['playing', 'roundFinished', 'finished'].includes(room.phase))
+    if (room.players.length < 2 || !['playing', 'roundFinished', 'finished'].includes(room.phase))
       fail('ROOM_NOT_FOUND', 'Questa anteprima non è disponibile.');
     return this.roomPreview(room);
   }
@@ -219,6 +261,8 @@ export class GameEngine extends EventEmitter {
       matched: [], selected: [], turn: null, starter: 0, revision: 0, rematch: [],
       lockedUntil: null, winnerId: null, finishReason: null, createdAt: this.now(), updatedAt: this.now(), matchType, arenaId: arenaId ?? null,
       lobbyMode: Array.isArray(supportedFeatures) && supportedFeatures.includes('lobby-v1'), lobbyReady: [] };
+    room.maxPlayers = matchType === 'friendly' && room.lobbyMode && supportedFeatures.includes('multiplayer-v1')
+      ? MAX_FRIENDLY_PLAYERS : 2;
     if (matchType === 'ranked') room.matchId = randomBytes(24).toString('base64url');
     this.rooms.set(code, room);
     this.change(room);
@@ -231,7 +275,7 @@ export class GameEngine extends EventEmitter {
     this.capabilities(supportedDecks);
     this.assertLobbySupport(room, supportedFeatures);
     // Full-room previews contain no card/theme data and need no rendering support.
-    if (room.phase !== 'waiting' || room.players.length !== 1)
+    if (room.phase !== 'waiting' || room.players.length >= this.capacity(room))
       fail('ROOM_FULL', 'La stanza è già al completo.', { roomPreview: this.roomPreview(room) });
     const { player, token } = this.newPlayer(name);
     if (profileId) player.profileId = profileId;
@@ -312,7 +356,7 @@ export class GameEngine extends EventEmitter {
     if (typeof ready !== 'boolean') fail('INVALID_OPTIONS', 'Scegli se sei pronto.');
     const votes = new Set(room.lobbyReady ?? []);
     if (ready) votes.add(id); else votes.delete(id);
-    if (room.players.length === 2 && room.players.every(p => p.connected && votes.has(p.id))) {
+    if (room.players.length >= 2 && room.players.every(p => p.connected && votes.has(p.id))) {
       if (room.matchType === 'ranked') Object.assign(room, this.rankedSetup(room, room.players[0], room.players[1], true));
       else {
         if (!this.ownsDeck(room.players[0].profileId, room.theme)) fail('DECK_LOCKED', 'Il profilo dell’host deve possedere questa collezione.');
@@ -329,7 +373,7 @@ export class GameEngine extends EventEmitter {
     const room = this.room(code);
     const player = this.player(room, id);
     if (room.phase !== 'playing') fail('NOT_PLAYING', 'La partita non è in corso.');
-    if (room.players.some(p => !p.connected)) fail('OPPONENT_OFFLINE', 'Attendi che l’altro giocatore si ricolleghi.');
+    if (this.activePlayers(room).some(p => !p.connected)) fail('OPPONENT_OFFLINE', 'Attendi che l’altro giocatore si ricolleghi.');
     if (room.matchType === 'ranked') {
       const board = player.individual;
       if (!board || board.matched.length === room.board.length) fail('ROUND_COMPLETE', 'Hai completato questo round.');
@@ -430,8 +474,10 @@ export class GameEngine extends EventEmitter {
     room.selected = [];
     room.finishReason = reason;
     room.rematch = [];
-    const [a, b] = room.players;
-    room.winnerId = winnerId ?? (a.score === b.score ? null : a.score > b.score ? a.id : b.id);
+    // `winnerId` undefined = decide by score; null = explicitly nobody (ranked draw).
+    room.winnerIds = reason === 'cancelled' ? [] : winnerId === undefined ? this.winnersOf(room.players) : winnerId ? [winnerId] : [];
+    // Legacy field: set only for a single winner, so old clients still read "draw" on shared wins.
+    room.winnerId = room.winnerIds.length === 1 ? room.winnerIds[0] : null;
   }
 
   rematch(code, id) {
@@ -441,7 +487,9 @@ export class GameEngine extends EventEmitter {
     if (room.phase !== 'finished') fail('NOT_FINISHED', 'Completa prima questa partita.');
     if (this.pendingRewards.has(room.code)) fail('REWARD_PENDING', 'Il premio è in elaborazione. Riprova tra poco.');
     if (room.matchType !== 'ranked' && !this.ownsDeck(room.players[0].profileId, room.theme)) fail('DECK_LOCKED', 'Il profilo dell’host deve possedere questa collezione.');
-    if (room.players.some(p => !p.connected || p.left)) fail('OPPONENT_OFFLINE', 'L’altro giocatore deve essere nella stanza.');
+    const active = this.activePlayers(room);
+    if (active.length < 2 || active.some(p => !p.connected) || (room.matchType === 'ranked' && room.players.some(p => p.left)))
+      fail('OPPONENT_OFFLINE', 'L’altro giocatore deve essere nella stanza.');
     let rankedProfiles, rankedPool;
     if (room.matchType === 'ranked') {
       rankedProfiles = room.players.map(p => this.rankedProfile(p.profileId, room));
@@ -450,17 +498,29 @@ export class GameEngine extends EventEmitter {
       for (const player of room.players) this.assertRankedSupport(player.supportedDecks, player.supportedFeatures, rankedPool);
     }
     if (!room.rematch.includes(id)) room.rematch.push(id);
-    if (room.rematch.length === 2) {
+    if (active.every(p => room.rematch.includes(p.id))) {
+      room.players = active; // players who left the previous game do not get a seat in the next
       if (room.matchType === 'ranked') {
         room.matchId = randomBytes(24).toString('base64url');
         room.roundDecks = drawRankedDecks(room.arenaId, rankedProfiles[0].ownedDecks, rankedProfiles[1].ownedDecks, this.catalog);
         room.rankedPool = rankedPool;
         room.roundIndex = 1; room.roundResults = []; room.roundReady = [];
         room.theme = room.roundDecks[0]; room.starter = randomInt(2);
-      } else room.starter = 1 - room.starter;
+      } else room.starter = (room.starter + 1) % room.players.length;
       this.start(room);
     }
     this.change(room);
+  }
+
+  /// A player stops taking part mid-game: leave, or a timeout once the grace period ends.
+  /// Callers handle the "fewer than two left" case before calling this.
+  dropFromPlay(room, player) {
+    player.left = true;
+    if (room.turn !== player.id) return;
+    // Cards the leaver had turned up must not stay half-selected for the next player.
+    room.selected = [];
+    room.lockedUntil = null;
+    room.turn = this.nextTurnPlayerId(room);
   }
 
   leave(code, id) {
@@ -472,22 +532,26 @@ export class GameEngine extends EventEmitter {
     player.disconnectedAt = this.now();
     player.tokenHash = tokenHash(randomBytes(32));
     if (room.lobbyMode && room.phase === 'waiting' && room.players[0].id !== id) {
-      this.removeLobbyGuest(room);
+      this.removeLobbyGuest(room, player);
       return;
     }
     if (room.phase === 'waiting' || (room.players.every(p => p.left) && !this.pendingRewards.has(room.code) && room.matchType !== 'ranked')) {
       this.remove(room.code);
     } else {
-      if (['playing', 'roundFinished'].includes(room.phase)) this.finish(room, 'forfeit', room.players.find(p => p.id !== id).id);
+      if (['playing', 'roundFinished'].includes(room.phase)) {
+        const remaining = this.activePlayers(room).filter(p => p.id !== id);
+        // Others carry on while at least two remain; the last one standing wins by forfeit.
+        if (remaining.length >= 2) this.dropFromPlay(room, player);
+        else this.finish(room, 'forfeit', remaining[0].id);
+      }
       room.rematch = [];
       this.change(room);
     }
   }
 
-  removeLobbyGuest(room) {
-    const guest = room.players[1];
-    if (!guest) return;
-    room.players.splice(1, 1);
+  removeLobbyGuest(room, guest) {
+    if (!guest || !room.players.includes(guest)) return;
+    room.players = room.players.filter(p => p !== guest);
     room.lobbyReady = [];
     delete room.roundDecks;
     delete room.rankedPool;
@@ -509,7 +573,7 @@ export class GameEngine extends EventEmitter {
     for (const room of [...this.rooms.values()]) {
       let dirty = false;
       if (room.matchType === 'ranked' && room.phase === 'waiting' && room.players.some(p => p.profileId === profileId)) {
-        if (room.lobbyMode && room.players[1]?.profileId === profileId) this.removeLobbyGuest(room);
+        if (room.lobbyMode && room.players[1]?.profileId === profileId) this.removeLobbyGuest(room, room.players[1]);
         else this.remove(room.code);
         continue;
       }
@@ -547,21 +611,29 @@ export class GameEngine extends EventEmitter {
       }
       if (now - room.updatedAt >= this.ttlMs && (room.matchType !== 'ranked' || ['finished', 'waiting'].includes(room.phase))) { this.remove(room.code); continue; }
       if (room.phase !== 'finished') {
-        const expired = room.players.filter(p => !p.connected && now - p.disconnectedAt >= this.graceMs);
+        // Players who already left are settled; only fresh timeouts are handled here.
+        const expired = room.players.filter(p => !p.left && !p.connected && now - p.disconnectedAt >= this.graceMs);
         if (expired.length > 0) {
           if (room.lobbyMode && room.phase === 'waiting') {
             if (expired.includes(room.players[0])) this.remove(room.code);
-            else this.removeLobbyGuest(room);
+            else for (const guest of expired) this.removeLobbyGuest(room, guest);
+            continue;
+          }
+          const survivors = this.activePlayers(room).filter(p => !expired.includes(p));
+          if (room.matchType !== 'ranked' && room.phase === 'playing' && survivors.length >= 2) {
+            // Big friendly game: the timed-out players drop out and the rest keep playing.
+            for (const player of expired) this.dropFromPlay(room, player);
+            this.change(room);
             continue;
           }
           if (room.matchType === 'ranked' && room.players.length === 2 && room.players.every(p => !p.connected) && expired.length < 2) continue;
-          if (room.players.length === 1 || (expired.length === room.players.length && room.matchType !== 'ranked')) this.remove(room.code);
-          else if (expired.length === room.players.length) {
+          if (room.players.length === 1 || (survivors.length === 0 && room.matchType !== 'ranked')) this.remove(room.code);
+          else if (survivors.length === 0) {
             this.finish(room, 'cancelled'); room.winnerId = null; this.change(room);
           }
           else {
             expired.forEach(p => { p.left = true; });
-            this.finish(room, 'forfeit', room.players.find(p => !expired.includes(p)).id);
+            this.finish(room, 'forfeit', survivors[0].id);
             this.change(room);
           }
           continue;
@@ -580,7 +652,7 @@ export class GameEngine extends EventEmitter {
       if (room.lockedUntil !== null && now >= room.lockedUntil) {
         room.selected = [];
         room.lockedUntil = null;
-        room.turn = room.players.find(p => p.id !== room.turn).id;
+        room.turn = this.nextTurnPlayerId(room);
         this.change(room);
       }
     }
@@ -598,10 +670,11 @@ export class GameEngine extends EventEmitter {
       cards: Array.from({ length: room.pairs * 2 }, (_, i) =>
         matched.includes(i) || selected.includes(i) ? room.board[i] : null),
       matched: [...matched], selected: [...selected],
-      players: room.players.map(({ id, name, score, connected, individual: board }) => ({ id, name, score, connected,
+      players: room.players.map(({ id, name, score, connected, left, individual: board }) => ({ id, name, score, connected, left: Boolean(left),
         ...(room.matchType === 'ranked' ? { attempts: board?.attempts ?? 0, roundComplete: Boolean(board && board.matched.length === room.board.length && room.board.length) } : {}) })),
       revision: room.revision, rematch: [...room.rematch], lockedUntil: room.matchType === 'ranked' ? individual?.lockedUntil ?? null : room.lockedUntil,
-      winnerId: room.winnerId, finishReason: room.finishReason,
+      winnerId: room.winnerId, winnerIds: room.winnerIds ?? (room.winnerId ? [room.winnerId] : []),
+      finishReason: room.finishReason, maxPlayers: this.capacity(room),
       matchType: room.matchType ?? 'friendly', arenaId: room.arenaId ?? null, matchId: room.matchId ?? room.roundId ?? null,
       roundIndex: room.roundIndex ?? 1, roundCount: room.matchType === 'ranked' ? 3 : 1,
       roundDecks: room.roundDecks ?? (room.lobbyMode && room.phase === 'waiting' ? [] : [room.theme]), roundResults: room.roundResults ?? [],

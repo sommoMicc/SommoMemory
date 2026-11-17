@@ -108,8 +108,14 @@ class _MyMemoryState extends State<MyMemory> {
           titleLarge: _fallbackTextStyle,
           titleMedium: _fallbackTextStyle,
           titleSmall: _fallbackTextStyle,
-          bodyLarge: TextStyle(color: ink, fontFamilyFallback: _systemFontFallback),
-          bodyMedium: TextStyle(color: ink, fontFamilyFallback: _systemFontFallback),
+          bodyLarge: TextStyle(
+            color: ink,
+            fontFamilyFallback: _systemFontFallback,
+          ),
+          bodyMedium: TextStyle(
+            color: ink,
+            fontFamilyFallback: _systemFontFallback,
+          ),
           bodySmall: _fallbackTextStyle,
           labelLarge: _fallbackTextStyle,
           labelMedium: _fallbackTextStyle,
@@ -1038,9 +1044,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   if (showScene)
                                     SizedBox(
                                       height: sceneHeight,
-                                      child: CollectionScene(
-                                        collection: theme,
-                                      ),
+                                      child: CollectionScene(collection: theme),
                                     ),
                                   Wrap(
                                     spacing: 12,
@@ -2458,6 +2462,7 @@ class _BoardFrame {
     required this.finished,
     required this.theme,
     this.winnerId,
+    List<String> winnerIds = const [],
     this.finishReason,
     this.roundId,
     this.matchId,
@@ -2484,6 +2489,7 @@ class _BoardFrame {
                  'moves': List.unmodifiable(rewardProof['moves'] as List),
              }),
        cards = List.unmodifiable(cards),
+       winnerIds = List.unmodifiable(winnerIds),
        roundDecks = List.unmodifiable(roundDecks),
        roundResults = List.unmodifiable(
          roundResults.map((result) {
@@ -2513,6 +2519,7 @@ class _BoardFrame {
   final bool finished;
   final String theme;
   final String? winnerId, finishReason, roundId;
+  final List<String> winnerIds;
   final String? matchId, arenaId;
   final String matchType, phase;
   final int roundIndex, roundCount;
@@ -2531,6 +2538,7 @@ class _BoardFrame {
       moves == other.moves &&
       finished == other.finished &&
       winnerId == other.winnerId &&
+      listEquals(winnerIds, other.winnerIds) &&
       finishReason == other.finishReason &&
       roundId == other.roundId &&
       matchId == other.matchId &&
@@ -2628,6 +2636,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       finished: game?.finished ?? state?['phase'] == 'finished',
       theme: state?['theme'] as String? ?? widget.theme,
       winnerId: state?['winnerId'] as String?,
+      winnerIds: (state?['winnerIds'] as List? ?? const []).cast<String>(),
       finishReason: state?['finishReason'] as String?,
       roundId: state?['roundId']?.toString(),
       matchId: state?['matchId']?.toString(),
@@ -3171,7 +3180,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         ? (s?['matchType'] == 'ranked' || s?['turn'] == playerId)
         : true;
     final paused =
-        network && authorityPlayers.any((p) => p['connected'] != true);
+        network &&
+        authorityPlayers.any(
+          (p) => p['left'] != true && p['connected'] != true,
+        );
     final rankedMatch = events.matchType == 'ranked';
     final ownPlayer = players.where((p) => p['id'] == playerId).firstOrNull;
     final ownRoundComplete = rankedMatch && ownPlayer?['roundComplete'] == true;
@@ -3189,8 +3201,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (finished && network) {
       result = events.finishReason == 'cancelled'
           ? tr(context, 'Partita annullata')
-          : events.winnerId == null
+          : events.winnerIds.length > 1 && events.winnerIds.contains(playerId)
+          ? tr(context, 'Vittoria condivisa!')
+          : events.winnerId == null && events.winnerIds.isEmpty
           ? tr(context, 'Pareggio')
+          : events.winnerId == null
+          ? tr(context, 'Hai perso')
           : events.winnerId == playerId
           ? tr(context, 'Hai vinto!')
           : tr(context, 'Hai perso');
@@ -3252,6 +3268,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       }
     }
 
+    Widget scoreBox(Map<String, dynamic> player) => StatBox(
+      label:
+          '${player['name']}${player['id'] == playerId ? tr(context, ' · TU') : ''}${player['left'] == true ? tr(context, ' · FUORI') : ''}',
+      value: rankedMatch
+          ? '${(events.totalAttempts[player['id']] as num?)?.toInt() ?? ((player['attempts'] as num?)?.toInt() ?? 0)}'
+          : '${player['score']}',
+      detail: rankedMatch
+          ? '${player['score']} ${player['score'] == 1 ? tr(context, 'coppia') : tr(context, 'coppie')} · ${player['attempts'] ?? 0} ${(player['attempts'] ?? 0) == 1 ? tr(context, 'tentativo') : tr(context, 'tentativi')}'
+          : null,
+      active: !finished && player['id'] == events.turn,
+    );
     final scores = Row(
       children: [
         if (local != null && widget.mode == PlayMode.solo) ...[
@@ -3280,22 +3307,29 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             ),
           ],
         ] else ...[
-          for (var p = 0; p < players.length; p++) ...[
-            if (p > 0) const SizedBox(width: 8),
+          if (players.length <= 3)
+            for (var p = 0; p < players.length; p++) ...[
+              if (p > 0) const SizedBox(width: 8),
+              Expanded(child: scoreBox(players[p])),
+            ]
+          else
+            // Four or more players: a wrapping grid, four per row at most.
             Expanded(
-              child: StatBox(
-                label:
-                    '${players[p]['name']}${players[p]['id'] == playerId ? tr(context, ' · TU') : ''}',
-                value: rankedMatch
-                    ? '${(events.totalAttempts[players[p]['id']] as num?)?.toInt() ?? ((players[p]['attempts'] as num?)?.toInt() ?? 0)}'
-                    : '${players[p]['score']}',
-                detail: rankedMatch
-                    ? '${players[p]['score']} ${players[p]['score'] == 1 ? tr(context, 'coppia') : tr(context, 'coppie')} · ${players[p]['attempts'] ?? 0} ${(players[p]['attempts'] ?? 0) == 1 ? tr(context, 'tentativo') : tr(context, 'tentativi')}'
-                    : null,
-                active: !finished && players[p]['id'] == events.turn,
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final columns = players.length == 4 ? 2 : 4;
+                  final width = (box.maxWidth - 8 * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final player in players)
+                        SizedBox(width: width, child: scoreBox(player)),
+                    ],
+                  );
+                },
               ),
             ),
-          ],
         ],
       ],
     );
@@ -3673,8 +3707,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                     network &&
                                                         players.any(
                                                           (p) =>
+                                                              p['left'] !=
+                                                                  true &&
                                                               p['connected'] !=
-                                                              true,
+                                                                  true,
                                                         )
                                                 ? null
                                                 : replay,
@@ -4381,8 +4417,9 @@ class _RoomStatusPanel extends StatelessWidget {
     final lobbyHost =
         lobbyPlayers.isNotEmpty && lobbyPlayers.first['id'] == online?.playerId;
     final lobbySelfReady = lobbyReady.contains(online?.playerId);
+    final lobbySeats = (state?['maxPlayers'] as int?) ?? 2;
     final lobbyBothConnected =
-        lobbyPlayers.length == 2 &&
+        lobbyPlayers.length >= 2 &&
         lobbyPlayers.every((player) => player['connected'] == true);
     final title = preview != null
         ? tr(context, 'Stanza completa')
@@ -4398,10 +4435,15 @@ class _RoomStatusPanel extends StatelessWidget {
         ? tr(context, 'In attesa del secondo giocatore')
         : tr(context, 'Connessione alla partita…');
     final description = preview != null
-        ? tr(
-            context,
-            'I due posti sono occupati. Non sei entrato nella partita.',
-          )
+        ? preview.players.length > 2
+              ? tr(
+                  context,
+                  'Tutti i posti sono occupati. Non sei entrato nella partita.',
+                )
+              : tr(
+                  context,
+                  'I due posti sono occupati. Non sei entrato nella partita.',
+                )
         : failed || terminal
         ? error ?? tr(context, 'Questa stanza non è più disponibile.')
         : reconnecting
@@ -4411,6 +4453,11 @@ class _RoomStatusPanel extends StatelessWidget {
               ? tr(
                   context,
                   'Condividi il codice: un amico può ancora entrare nella lobby.',
+                )
+              : lobbySeats > 2
+              ? tr(
+                  context,
+                  'Tutti i giocatori devono scegliere Pronto per iniziare.',
                 )
               : tr(
                   context,
@@ -4461,94 +4508,111 @@ class _RoomStatusPanel extends StatelessWidget {
                       ),
                       if (lobby) ...[
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            for (var index = 0; index < 2; index++) ...[
-                              if (index > 0) const SizedBox(width: 8),
-                              Expanded(
-                                child: Builder(
-                                  builder: (context) {
-                                    final player = lobbyPlayers.length > index
-                                        ? lobbyPlayers[index]
-                                        : null;
-                                    final playerConnected =
-                                        player?['connected'] == true;
-                                    final playerId = player?['id'];
-                                    final playerReady =
-                                        playerId is String &&
-                                        lobbyReady.contains(playerId);
-                                    final role = index == 0
-                                        ? 'Host'
-                                        : tr(context, 'Ospite');
-                                    final playerStatus = player == null
-                                        ? tr(context, 'Posto libero')
-                                        : !playerConnected
-                                        ? tr(context, 'Disconnesso')
-                                        : playerReady
-                                        ? tr(context, 'Pronto')
-                                        : tr(context, 'In attesa');
-                                    return Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE8E2F3),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            player == null
-                                                ? role
-                                                : '${player['name']} · $role',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              color: ink,
-                                              fontWeight: FontWeight.w600,
+                        LayoutBuilder(
+                          builder: (context, box) {
+                            // Two seats per row; a lobby of eight is four rows.
+                            final seatWidth = lobbySeats <= 2
+                                ? (box.maxWidth - 8) / 2
+                                : (box.maxWidth - 8) / 2;
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (var index = 0; index < lobbySeats; index++)
+                                  SizedBox(
+                                    width: seatWidth,
+                                    child: Builder(
+                                      builder: (context) {
+                                        final player =
+                                            lobbyPlayers.length > index
+                                            ? lobbyPlayers[index]
+                                            : null;
+                                        final playerConnected =
+                                            player?['connected'] == true;
+                                        final playerId = player?['id'];
+                                        final playerReady =
+                                            playerId is String &&
+                                            lobbyReady.contains(playerId);
+                                        final role = index == 0
+                                            ? 'Host'
+                                            : tr(context, 'Ospite');
+                                        final playerStatus = player == null
+                                            ? tr(context, 'Posto libero')
+                                            : !playerConnected
+                                            ? tr(context, 'Disconnesso')
+                                            : playerReady
+                                            ? tr(context, 'Pronto')
+                                            : tr(context, 'In attesa');
+                                        return Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE8E2F3),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Flexible(
-                                                child: Text(
-                                                  playerStatus,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    color: ink,
-                                                    fontSize: 12,
-                                                  ),
+                                              Text(
+                                                player == null
+                                                    ? role
+                                                    : '${player['name']} · $role',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  color: ink,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                              if (playerId is String &&
-                                                  voice?.memberFor(playerId) !=
-                                                      null) ...[
-                                                const SizedBox(width: 4),
-                                                Icon(
-                                                  voice!
-                                                          .memberFor(playerId)!
-                                                          .muted
-                                                      ? Icons.mic_off_rounded
-                                                      : Icons.mic_rounded,
-                                                  size: 14,
-                                                  color: ink,
-                                                ),
-                                              ],
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      playerStatus,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        color: ink,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (playerId is String &&
+                                                      voice?.memberFor(
+                                                            playerId,
+                                                          ) !=
+                                                          null) ...[
+                                                    const SizedBox(width: 4),
+                                                    Icon(
+                                                      voice!
+                                                              .memberFor(
+                                                                playerId,
+                                                              )!
+                                                              .muted
+                                                          ? Icons
+                                                                .mic_off_rounded
+                                                          : Icons.mic_rounded,
+                                                      size: 14,
+                                                      color: ink,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         FilledButton(
@@ -4579,48 +4643,61 @@ class _RoomStatusPanel extends StatelessWidget {
                       ],
                       if (preview != null) ...[
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            for (var i = 0; i < players.length; i++) ...[
-                              if (i > 0) const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE8E2F3),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '${players[i]['name']}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: ink,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                        LayoutBuilder(
+                          builder: (context, box) {
+                            final columns = players.length.clamp(1, 4);
+                            final width =
+                                (box.maxWidth - 8 * (columns - 1)) / columns;
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (var i = 0; i < players.length; i++)
+                                  SizedBox(
+                                    width: width,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE8E2F3),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      Text(
-                                        '${players[i]['score']} ${players[i]['score'] == 1 ? tr(context, 'coppia') : tr(context, 'coppie')}',
-                                        style: const TextStyle(
-                                          color: ink,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${players[i]['name']}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: ink,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${players[i]['score']} ${players[i]['score'] == 1 ? tr(context, 'coppia') : tr(context, 'coppie')}',
+                                            style: const TextStyle(
+                                              color: ink,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ],
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         Text(
                           preview.phase == 'finished'
-                              ? preview.winnerId == null
+                              ? preview.winnerIds.length > 1
+                                    ? tr(
+                                        context,
+                                        'Risultato finale · Vittoria condivisa',
+                                      )
+                                    : preview.winnerId == null
                                     ? tr(context, 'Risultato finale · Pareggio')
                                     : tr(
                                         context,

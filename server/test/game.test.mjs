@@ -48,7 +48,7 @@ test('full-room previews precede theme compatibility and expose only copied publ
   try { game.join({ code: first.code, name: 'Old client' }); } catch (error) { rejected = error; }
   assert.equal(rejected.code, 'ROOM_FULL');
   const preview = rejected.roomPreview;
-  assert.deepEqual(Object.keys(preview).sort(), ['code', 'phase', 'players', 'winnerId', 'finishReason'].sort());
+  assert.deepEqual(Object.keys(preview).sort(), ['code', 'phase', 'players', 'winnerId', 'winnerIds', 'finishReason'].sort());
   assert.deepEqual(preview.players.map(p => p.score), [1, 0]);
   assert.equal(preview.phase, 'playing');
   for (const player of preview.players) assert.deepEqual(Object.keys(player).sort(), ['id', 'name', 'score', 'connected'].sort());

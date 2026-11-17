@@ -12,14 +12,19 @@ class RoomPreview {
     required this.phase,
     required List<Map<String, dynamic>> players,
     this.winnerId,
+    List<String> winnerIds = const [],
     this.finishReason,
-  }) : players = List.unmodifiable(
+  }) : winnerIds = List.unmodifiable(winnerIds),
+       players = List.unmodifiable(
          players.map((player) => Map<String, dynamic>.unmodifiable(player)),
        );
 
   final String code, phase;
   final List<Map<String, dynamic>> players;
   final String? winnerId, finishReason;
+
+  /// Every player sharing the top score; several ids mean a shared win.
+  final List<String> winnerIds;
   bool get finished => phase == 'finished';
 
   factory RoomPreview.fromJson(Map<String, dynamic> json) {
@@ -28,7 +33,8 @@ class RoomPreview {
         !RegExp(r'^[A-Z2-9]{6}$').hasMatch(code) ||
         !['playing', 'roundFinished', 'finished'].contains(phase) ||
         raw is! List ||
-        raw.length != 2) {
+        raw.length < 2 ||
+        raw.length > 8) {
       throw const FormatException('Invalid room preview');
     }
     final players = <Map<String, dynamic>>[];
@@ -53,10 +59,16 @@ class RoomPreview {
         'connected': value['connected'],
       });
     }
-    if (players[0]['id'] == players[1]['id']) {
+    if (players.map((p) => p['id']).toSet().length != players.length) {
       throw const FormatException('Invalid preview players');
     }
     final winnerId = json['winnerId'], finishReason = json['finishReason'];
+    final rawWinners =
+        json['winnerIds'] ?? (winnerId == null ? [] : [winnerId]);
+    if (rawWinners is! List ||
+        rawWinners.any((id) => !players.any((p) => p['id'] == id))) {
+      throw const FormatException('Invalid preview result');
+    }
     if ((winnerId != null && !players.any((p) => p['id'] == winnerId)) ||
         ![null, 'completed', 'forfeit', 'cancelled'].contains(finishReason) ||
         (phase == 'finished' && finishReason == null) ||
@@ -68,6 +80,7 @@ class RoomPreview {
       phase: phase as String,
       players: players,
       winnerId: winnerId as String?,
+      winnerIds: rawWinners.cast<String>(),
       finishReason: finishReason as String?,
     );
   }
@@ -108,6 +121,7 @@ class OnlineGame extends ChangeNotifier implements VoiceChannel {
     'ranked-v1',
     'ranked-attempts-v1',
     'lobby-v1',
+    'multiplayer-v1',
     'voice-v1',
   ];
   final StreamController<Map<String, dynamic>> _voice =

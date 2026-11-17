@@ -18,6 +18,13 @@ const Map<String, String> enGameStrings = {
   "Partita completata": "Game complete",
   "Partita annullata": "Game cancelled",
   "Pareggio": "Draw",
+  "Vittoria condivisa!": "Shared win!",
+  "Risultato finale · Vittoria condivisa": "Final result · Shared win",
+  " · FUORI": " · OUT",
+  "Tutti i giocatori devono scegliere Pronto per iniziare.":
+      "All players must select Ready to start.",
+  "Tutti i posti sono occupati. Non sei entrato nella partita.":
+      "All seats are taken. You have not joined the game.",
   "Hai vinto!": "You won!",
   "Hai perso": "You lost",
   "In attesa della riconnessione…": "Waiting to reconnect…",
